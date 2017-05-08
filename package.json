@@ -24,9 +24,12 @@
   "dependencies": {
     "@google-cloud/speech": "0.9.0",
     "@google-cloud/storage": "1.0.0",
+    "aplay": "^1.1.0",
     "fs": "0.0.1-security",
     "google-tts-api": "0.0.1",
+    "node-aplay": "^1.0.3",
     "node-record-lpcm16": "0.3.0",
+    "onoff": "^1.1.2",
     "play": "^0.5.0",
     "play-sound": "^1.1.1",
     "request": "^2.81.0",

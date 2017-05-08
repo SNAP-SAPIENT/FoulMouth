@@ -12,7 +12,20 @@ const speech = Speech();
 
 const player = require('play-sound')();
 
+const Gpio = require('onoff').Gpio;
+const button = new Gpio(4, 'in');
+
 // Instantiates a client
+
+button.watch(function(err, value) {
+  if (value == 0) {
+     streamingMicRecognize();
+  }
+});
+
+process.on('SIGING', function() {
+button.unexport();
+});
 
 const config = {
   config: {
@@ -23,28 +36,24 @@ const config = {
   interimResults: false // If you want interim results, set this to true
 };
 
+
 const save = (url, filename) => {
   // File to save audio to
   var mp3File = filename + '.mp3';
   var mp3_file = fs.createWriteStream(mp3File);
-	console.log(url);
+//record.stop();
   // Make API request
   return new Promise((resolve, reject) => {
     request.get(url).on('error', function(err) {
       console.log(err);
       reject();
     }).on('data', function(data) {
-	console.log("writing");
+      //console.log("writing");
       mp3_file.write(data);
     }).on('end', function() {
       mp3_file.end();
-	console.log("saved");
-      player.play(mp3File, (err) => {
-	if (err) {
-	  console.log("err");
-	}
-	console.log("complete");
-      });
+
+      console.log("saved");
       resolve();
     });
   });
@@ -52,17 +61,18 @@ const save = (url, filename) => {
 
 
 const streamingMicRecognize = () => {
-  console.log("Stream");
+  //player.play('./test.mp3');
+ // console.log("Stream");
   // console.dir(recognizeStream);
 
   const recognizeStream = speech.createRecognizeStream(config)
     .on('error', console.error)
     .on('data', data => {
-    console.log('recongizeStream > data');
+    //console.log('recongizeStream > data');
     record.stop();
 
     console.log(data.results);
-playback(data);
+    playback(data);
   }).on('end', () => { console.log('end stream');});
   // console.dir(recognizeStream);
 
@@ -70,9 +80,9 @@ playback(data);
     sampleRateHertz: 16000, threshold: 0,
     // Other options, see https://www.npmjs.com/package/node-record-lpcm16#options
     verbose: true,
-    recordProgram: 'arecord', // Try also "arecord" or "sox"
+   recordProgram: 'arecord', // Try also "arecord" or "sox"
     silence: '10.0',
-    device: 'plughw:1'
+    device: 'plughw:0'
   }).on('error', console.error).pipe(recognizeStream);
 
   console.log('Listening, press Ctrl+C to stop.');
@@ -85,6 +95,7 @@ const playback = data => {
   soundsArr.forEach((elem, index) => {
     if (elem.includes('fuck')) {
       soundsArr[index] = soundsArr[index].replace('fuck', 'toast');
+
     }
   });
 
@@ -92,11 +103,14 @@ const playback = data => {
   googleTTS(soundString, 'en', 1). // speed normal = 1 (default), slow = 0.24
   then((url) => {
     save(url, 'test');
-    console.log(url);
+    //console.log(url);
   })
   .then(() => {
-    console.log('AFTER SAY');
-    record.stop();
+    console.log('AFTER SAVE');
+    player.play('test.mp3', function(err) {
+	console.log("Hey");
+});
+    //record.stop();
   })
   .then(() => {
     // streamingMicRecognize();
@@ -106,7 +120,7 @@ const playback = data => {
   });
 }
 
-streamingMicRecognize(); 
+
 
 
 
@@ -124,29 +138,19 @@ process.on('SIGINT', function () {
   process.nextTick(function () { process.exit(0); });
 });
 
-
-// ---- animation-loop
-var offset = 0;
-setInterval(function () {
-  for (var i = 0; i < NUM_LEDS; i++) {
-    pixelData[i] = colorwheel((offset + i) % 256);
-  }
-
-  offset = (offset + 1) % 256;
-  ws281x.render(pixelData);
-}, 1000 / 30);
-
-console.log('Press <ctrl>+C to exit.');
-
-
-// rainbow-colors, taken from http://goo.gl/Cs3H0v
-function colorwheel(pos) {
-  pos = 255 - pos;
-  if (pos < 85) { return rgb2Int(255 - pos * 3, 0, pos * 3); }
-  else if (pos < 170) { pos -= 85; return rgb2Int(0, pos * 3, 255 - pos * 3); }
-  else { pos -= 170; return rgb2Int(pos * 3, 255 - pos * 3, 0); }
-}
-
-function rgb2Int(r, g, b) {
+function color(r, g, b) {
+  r = r * 128 / 255;
+  g = g * 128 / 255;
+  b = b * 128 / 255;
   return ((r & 0xff) << 16) + ((g & 0xff) << 8) + (b & 0xff);
 } 
+
+function renderIt() {
+  for (var i = 0; i < NUM_LEDS; i++) {
+    pixelData[i] = color(255, 255, 255);
+  }
+
+
+  ws281x.render(pixelData);
+}
+
