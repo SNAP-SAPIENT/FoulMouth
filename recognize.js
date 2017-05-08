@@ -10,7 +10,7 @@ const record = require('node-record-lpcm16');
 const Speech = require('@google-cloud/speech');
 const speech = Speech();
 
-const play = require('play');
+const player = require('play-sound')();
 
 // Instantiates a client
 
@@ -27,77 +27,55 @@ const save = (url, filename) => {
   // File to save audio to
   var mp3File = filename + '.mp3';
   var mp3_file = fs.createWriteStream(mp3File);
-
+	console.log(url);
   // Make API request
   return new Promise((resolve, reject) => {
     request.get(url).on('error', function(err) {
       console.log(err);
       reject();
     }).on('data', function(data) {
+	console.log("writing");
       mp3_file.write(data);
     }).on('end', function() {
       mp3_file.end();
-      play.sound(mp3File);
+	console.log("saved");
+      player.play(mp3File, (err) => {
+	if (err) {
+	  console.log("err");
+	}
+	console.log("complete");
+      });
       resolve();
     });
   });
 }
 
-// const say = function (url) {
-//   // Pipe to Lame to convert to PCM, then pipe to speakers
-//   return new Promise((resolve, reject) => {
-//     request
-//     .get(url)
-//     .on('error', function (err) {
-//       console.log(err);
-//     })
-//     .pipe(new lame.Decoder())
-//     .on('format', function (format) {
-//       //console.log(format);
-//
-//
-//       // const mySpeaker = new speaker(format);
-//       // mySpeaker.on('finish', () => {
-//       //   streamingMicRecognize();
-//       //   console.log('Speaker');
-//       // });
-//       //const mySpeaker = Speaker(format);
-//       var playing = this.pipe(Speaker(format));
-//       playing.on('done', console.log);
-//
-//       resolve();
-//
-//       // playing.on('error', function (err) {
-//       //   console.log('SAY > ERROR', err);
-//       //   reject();
-//       // });
-//     });
-//   });
-// }
 
 const streamingMicRecognize = () => {
   console.log("Stream");
   // console.dir(recognizeStream);
 
-  const recognizeStream = speech.createRecognizeStream(config).on('error', console.error).on('data', data => {
+  const recognizeStream = speech.createRecognizeStream(config)
+    .on('error', console.error)
+    .on('data', data => {
     console.log('recongizeStream > data');
     record.stop();
-    playback(data);
-    process.stdout.write(data.results);
-  }).on('end', () => {
-    console.log("end stream")
-  });
+
+    console.log(data.results);
+playback(data);
+  }).on('end', () => { console.log('end stream');});
   // console.dir(recognizeStream);
 
   record.start({
     sampleRateHertz: 16000, threshold: 0,
     // Other options, see https://www.npmjs.com/package/node-record-lpcm16#options
-    verbose: false,
-    recordProgram: 'rec', // Try also "arecord" or "sox"
-    silence: '10.0'
+    verbose: true,
+    recordProgram: 'arecord', // Try also "arecord" or "sox"
+    silence: '10.0',
+    device: 'plughw:1'
   }).on('error', console.error).pipe(recognizeStream);
 
-  //console.log('Listening, press Ctrl+C to stop.');
+  console.log('Listening, press Ctrl+C to stop.');
   // [END speech_streaming_mic_recognize]
 }
 
@@ -114,7 +92,7 @@ const playback = data => {
   googleTTS(soundString, 'en', 1). // speed normal = 1 (default), slow = 0.24
   then((url) => {
     save(url, 'test');
-    // console.log(url);
+    console.log(url);
   })
   .then(() => {
     console.log('AFTER SAY');
@@ -128,4 +106,47 @@ const playback = data => {
   });
 }
 
-streamingMicRecognize();
+streamingMicRecognize(); 
+
+
+
+var ws281x = require('rpi-ws281x-native');
+
+
+var NUM_LEDS = 7,
+    pixelData = new Uint32Array(NUM_LEDS);
+
+ws281x.init(NUM_LEDS);              
+
+// ---- trap the SIGINT and reset before exit
+process.on('SIGINT', function () {
+  ws281x.reset();
+  process.nextTick(function () { process.exit(0); });
+});
+
+
+// ---- animation-loop
+var offset = 0;
+setInterval(function () {
+  for (var i = 0; i < NUM_LEDS; i++) {
+    pixelData[i] = colorwheel((offset + i) % 256);
+  }
+
+  offset = (offset + 1) % 256;
+  ws281x.render(pixelData);
+}, 1000 / 30);
+
+console.log('Press <ctrl>+C to exit.');
+
+
+// rainbow-colors, taken from http://goo.gl/Cs3H0v
+function colorwheel(pos) {
+  pos = 255 - pos;
+  if (pos < 85) { return rgb2Int(255 - pos * 3, 0, pos * 3); }
+  else if (pos < 170) { pos -= 85; return rgb2Int(0, pos * 3, 255 - pos * 3); }
+  else { pos -= 170; return rgb2Int(pos * 3, 255 - pos * 3, 0); }
+}
+
+function rgb2Int(r, g, b) {
+  return ((r & 0xff) << 16) + ((g & 0xff) << 8) + (b & 0xff);
+} 
