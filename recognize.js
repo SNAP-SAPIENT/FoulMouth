@@ -12,22 +12,29 @@ const speech = Speech();
 const player = require('play-sound')();
 
 const Gpio = require('onoff').Gpio;
-const ledBlue = new Gpio(21, 'out');
-const ledGreen = new Gpio(22, 'out');
-const ledRed = new Gpio(23, 'out');
+//const ledBlue = new Gpio(21, 'out');
+//const ledGreen = new Gpio(22, 'out');
+const ledButton = new Gpio(23, 'out');
 const button = new Gpio(4, 'in', 'both');
+let start = 1;
+let doubleHit = 0;
 
 
-ledBlue.writeSync(ledBlue.readSync() ^ 0);
-ledGreen.writeSync(ledGreen.readSync() ^ 0);
-ledRed.writeSync(ledRed.readSync() ^ 0);
+ledButton.writeSync(1);
 
 
 button.watch(function(err, value) {
   console.log(value);
-  if (value == 0) {
+
+  if(start == 1) {
+    start = 0;
+    ledButton.writeSync(0);
     streamingMicRecognize();
-  }
+  }  
+});
+
+process.on('SIGINT', function () {
+  button.unexport();
 });
 
 const config = {
@@ -55,8 +62,9 @@ const save = (url, filename) => {
       mp3_file.write(data);
     }).on('end', function() {
       mp3_file.end();
-
       console.log("saved");
+      ledButton.writeSync(1);
+      start = 1;
       resolve();
     });
   });
@@ -87,90 +95,39 @@ const streamingMicRecognize = () => {
 const playback = data => {
   let counter = 0;
   let saveFile = false;
+  let curseWords = {
+    'ass': 'tushy',
+    'shit': 'sugar',
+    'fuck': 'toast',
+    'damn': 'shazam',
+    'bitch': 'nutcrack',
+    'piss': 'piddle',
+    'dick': 'fishstick',
+    'cock': 'collywobble',
+    'pussy': 'cougar',
+    'bastard': 'barnacle',
+    'slut': 'nope',
+    'douche': 'donut',
+    'hell': 'hullabaloo'
+  };
   let soundsArr = data.results.split(" ");
 
-  soundsArr.forEach((elem, index) => {
-   if (elem.includes('fuck')) {
-      soundsArr[index] = soundsArr[index].replace('fuck', 'toast');
-      ledGreen.writeSync(1);  
-      saveFile = true;  
-   }
+  let censoredArr = soundsArr.map(word => {
+   console.log(word);
+   for(let key in curseWords) {
+    if(word.includes(key)) {
 
-   else if (elem.includes('ass')) {
-      soundsArr[index] = soundsArr[index].replace('ass', 'tushy');
-      ledGreen.writeSync(1);  
       saveFile = true;  
-   }
-
-   else if (elem.includes('shit')) {
-      soundsArr[index] = soundsArr[index].replace('shit', 'sugar');
-      ledGreen.writeSync(1);  
-      saveFile = true;  
-   }
-
-   else if (elem.includes('damn')) {
-      soundsArr[index] = soundsArr[index].replace('damn', 'shazam');
-      ledGreen.writeSync(1);  
-      saveFile = true;  
-   }
-
-   else if (elem.includes('bitch')) {
-      soundsArr[index] = soundsArr[index].replace('bitch', 'nutcrack');
-      ledGreen.writeSync(1);  
-      saveFile = true;  
-   }
-
-   else if (elem.includes('piss')) {
-      soundsArr[index] = soundsArr[index].replace('piss', 'piddle');
-      ledGreen.writeSync(1);  
-      saveFile = true;  
-   }
-
-   else if (elem.includes('dick')) {
-      soundsArr[index] = soundsArr[index].replace('dick', 'fishstick');
-      ledGreen.writeSync(1);  
-      saveFile = true;  
-   }
-
-   else if (elem.includes('cock')) {
-      soundsArr[index] = soundsArr[index].replace('cock', 'collywobble');
-      ledGreen.writeSync(1);  
-      saveFile = true;  
-   }
-
-   else if (elem.includes('pussy')) {
-      soundsArr[index] = soundsArr[index].replace('pussy', 'cougar');
-      ledGreen.writeSync(1);  
-      saveFile = true;  
-   }
-
-   else if (elem.includes('bastard')) {
-      soundsArr[index] = soundsArr[index].replace('bastard', 'barnacle');
-      ledGreen.writeSync(1);  
-      saveFile = true;  
-   }
-
-   else if (elem.includes('slut')) {
-      soundsArr[index] = soundsArr[index].replace('slut', 'nope');
-      ledGreen.writeSync(1);  
-      saveFile = true;  
-   }
-
-   else if (elem.includes('douche')) {
-      soundsArr[index] = soundsArr[index].replace('douche', 'donut');
-      ledGreen.writeSync(1);  
-      saveFile = true;  
-   }
-
-   else if (elem.includes('hell')) {
-      soundsArr[index] = soundsArr[index].replace('hell', 'hullabaloo');
-      ledGreen.writeSync(1);  
-      saveFile = true;  
-   }
+      return word.replace(key, curseWords[key]);
+    } 
+   } 
+   return word;
   });
 
+console.log(censoredArr);
+
   if(saveFile) {
-    let soundString = soundsArr.join(" ").toString();
+    let soundString = censoredArr.join(" ").toString();
   
     googleTTS(soundString, 'en', 1). // speed normal = 1 (default), slow = 0.24
     then((url) => {
@@ -179,13 +136,16 @@ const playback = data => {
     })
     .then(() => {
       console.log('AFTER SAVE');
-      //player.play('test.mp3', function(err) {
-  	//console.log("Hey");
-    // });
+      player.play('./resources/highlight0.mp3', function(err) {
+  	console.log("Hey");
+      });
     })
     .catch(err => {
       console.error(err.stack);
     });
+  } else {
+    ledButton.writeSync(1);
+    start = 1;
   }
 }
 
