@@ -16,24 +16,44 @@ const Gpio = require('onoff').Gpio;
 const ledRed = new Gpio(22, 'out');
 const ledBlue = new Gpio(20, 'out');
 const ledGreen = new Gpio(21, 'out');
-const ledButton = new Gpio(23, 'out');
+const ledButton = new Gpio(14, 'out');
 const button = new Gpio(4, 'in', 'both');
 
-let start = 1;
-let highlightNum = 0;
-let curseCount = 0;
-let curseWordCount = {};
+let start = true;
+let playbackStart = true;
+let highlightNum;
+let curseCount;
+let curseWordCount;
+let curseWordCountString;
 
 ledButton.writeSync(1);
 
 button.watch(function(err, value) {
- if(value == 0) {
-   if(start == 1) {
+console.log('working');
+ if(value === 0) {
+console.log(start);
+   if(start === true) {
+     highlightNum = 0;
+     curseCount = 0;
+     curseWordCount = {};
+     curseWordCountString = '';
      ledButton.writeSync(0);
      recordStreaming();
-     start = 0;
+     start = false;
    } else {
-     textToSpeech(`Holy sugar, you cursed ${curseCount} times`, 'summary');
+     record.stop();
+     let timeTense = '';
+
+     if (curseCount > 1) {
+       timeTense = 'times';
+     } else {
+       timeTense = 'time';
+     }
+
+     for (let curse in curseWordCount) {
+       curseWordCountString += `You said ${curse} ${curseWordCount[curse]} ${timeTense}. `;
+     }
+     textToSpeechStart(`Holy sugar, you cursed ${curseCount} ${timeTense}. ${curseWordCountString} Here are some highlights.`, 'summary');
    }
  }
 });
@@ -61,21 +81,22 @@ const colors = {
    'blue': 'ledBlue',
    'yellow': ['ledRed', 'ledGreen'],
    'cyan': ['ledGreen', 'ledBlue'],
-   'purple': [ledBlue, ledRed],
-   'white': [ledBlue, ledRed, ledGreen]
+   'purple': ['ledBlue', 'ledRed'],
+   'white': ['ledBlue', 'ledRed', 'ledGreen']
 };
 
 const blink = (color, time) => {
  const led = colors[color];
- const light = eval(led);
+ const singleLight = eval(led);
 
  const blinkInterval = setInterval(() => {
     if(typeof led === 'object') {
        led.forEach((value) => {
-         light.writeSync(light.readSync() ^ 1);
+         const multiLight = eval(value);
+         multiLight.writeSync(multiLight.readSync() ^ 1);
        });
     } else {
-       light.writeSync(light.readSync() ^ 1);
+       singleLight.writeSync(singleLight.readSync() ^ 1);
     }
   }, time);
 
@@ -83,12 +104,21 @@ const blink = (color, time) => {
    clearInterval(blinkInterval);
     if(typeof led === 'object') {
        led.forEach((value) => {
-         light.writeSync(0);
+         const multiLight = eval(value);
+         multiLight.writeSync(0);
        });
     } else {
-       light.writeSync(0);
+       singleLight.writeSync(0);
     }   
   }, 3000);
+}
+
+const randomSound = () => {
+  const dirs = fs.readdirSync('./sounds/');
+  const length = dirs.length;
+  const getRandomIndex = Math.floor(Math.random() * length);
+  console.log(dirs[getRandomIndex]);
+  return dirs[getRandomIndex];
 }
 
 const sequence = () => {
@@ -100,6 +130,8 @@ const sequence = () => {
          ledRed.writeSync(ledRed.readSync() ^ 1);
   }, 300);
 }
+
+sequence();
 
 const save = (url, filename) => {
   // File to save audio to
@@ -117,7 +149,6 @@ const save = (url, filename) => {
       mp3_file.end();
       console.log("saved");
       if(filename === 'summary') {
-        record.stop();
 	play.sound(`./resources/summary.mp3`, () => {
           playback();
 	});
@@ -188,7 +219,11 @@ const processing = data => {
   });
 
   if(saveFile) {
+    record.stop();
     blink('red', 100);
+    play.sound(`./sounds/${randomSound()}` , () => {
+      record.start();
+    });
     let soundString = censoredArr.join(" ").toString();
     textToSpeech(soundString, `highlight${highlightNum}`);
   }
@@ -211,10 +246,26 @@ const textToSpeech = (string, fileName) => {
   }
 }
 
+const textToSpeechStart = (string, filename) => {
+  if (playbackStart === true) {
+    playbackStart = false;     
+    textToSpeech(string, filename)
+  } else {
+    return;
+  }
+}
+
 const playback = (i = 0) => {
-console.log(highlightNum);
   if (i >= highlightNum) {
     play.sound('./resources/end.mp3');
+    ledButton.writeSync(1);
+    start = true;
+    playbackStart = true;
+
+    for(let i = 0; i <= highlightNum - 1; i++) {
+      fs.unlinkSync(`./resources/highlight${i}.mp3`);
+    }
+
     return;
   }
 

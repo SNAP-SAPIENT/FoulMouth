@@ -34,7 +34,7 @@
     "request": "^2.81.0",
     "rpi-ws281x-native": "^0.8.1",
     "rpio": "^0.9.16",
-    "sox": "^0.1.0",
+    "sox": "^0.1.0"
   },
   "devDependencies": {
     "@google-cloud/nodejs-repo-tools": "1.3.1",
