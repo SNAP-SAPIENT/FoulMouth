@@ -5,7 +5,7 @@ const fs = require('fs');
 const googleTTS = require('google-tts-api');
 const request = require('request');
 
-const record = require('node-record-lpcm16');
+let record = require('node-record-lpcm16');
 const Speech = require('@google-cloud/speech');
 const speech = Speech();
 
@@ -13,7 +13,8 @@ const play = require('play').Play();
 play.usePlayer('mplayer');
 
 const Gpio = require('onoff').Gpio;
-const ledRed = new Gpio(22, 'out');
+const ledRed = new Gpio(16, 'out');
+const ledWhite = new Gpio(26, 'out');
 const ledBlue = new Gpio(20, 'out');
 const ledGreen = new Gpio(21, 'out');
 const ledButton = new Gpio(14, 'out');
@@ -21,39 +22,50 @@ const button = new Gpio(4, 'in', 'both');
 
 let start = true;
 let playbackStart = true;
+let charity = 'American Red Cross';
 let highlightNum;
+let donatedMoney;
 let curseCount;
 let curseWordCount;
 let curseWordCountString;
+let firstSequenceInterval;
+let secondSequenceInterval;
+let endInterval;
 
 ledButton.writeSync(1);
+ledWhite.writeSync(1);
+ledBlue.writeSync(1);
 
 button.watch(function(err, value) {
-console.log('working');
+
  if(value === 0) {
-console.log(start);
+   console.log(start);
    if(start === true) {
+     donatedMoney = 0;
      highlightNum = 0;
      curseCount = 0;
      curseWordCount = {};
      curseWordCountString = '';
      ledButton.writeSync(0);
      recordStreaming();
-     start = false;
    } else {
      record.stop();
-     let timeTense = '';
+     let timeTense = 'time';
 
      if (curseCount > 1) {
        timeTense = 'times';
-     } else {
-       timeTense = 'time';
      }
 
+
      for (let curse in curseWordCount) {
-       curseWordCountString += `You said ${curse} ${curseWordCount[curse]} ${timeTense}. `;
+       if (curseWordCount[curse] > 1) {
+         timeTense = 'times';
+       } else {
+         timeTense = 'time';
+       } 
+       curseWordCountString += `${curse} ${curseWordCount[curse]} ${timeTense}`;
      }
-     textToSpeechStart(`Holy sugar, you cursed ${curseCount} ${timeTense}. ${curseWordCountString} Here are some highlights.`, 'summary');
+     textToSpeechStart(`Holy sugar, you cursed ${curseCount} ${timeTense}. You said ${curseWordCountString}. Congratulations! you donated ${Math.trunc(donatedMoney)} dollars and ${(donatedMoney % 1) * 100} cents to the ${charity}. Here are your most memorable moments.`, 'summary');
    }
  }
 });
@@ -63,6 +75,7 @@ process.on('SIGINT', function () {
   ledButton.unexport();
   ledBlue.unexport();
   ledGreen.unexport();
+  ledWhite.unexport();
   ledRed.unexport();
 });
 
@@ -76,6 +89,7 @@ const config = {
 };
 
 const colors = {
+   'white': 'ledWhite',
    'red': 'ledRed',
    'green': 'ledGreen',
    'blue': 'ledBlue',
@@ -113,6 +127,16 @@ const blink = (color, time) => {
   }, 3000);
 }
 
+const sequence = () => {
+  firstSequenceInterval = setInterval(() => {
+    ledBlue.writeSync(ledBlue.readSync() ^ 1);
+  }, 200);
+
+  secondSequenceInterval = setInterval(() => {
+    ledRed.writeSync(ledRed.readSync() ^ 1);
+  }, 300);
+}
+
 const randomSound = () => {
   const dirs = fs.readdirSync('./sounds/');
   const length = dirs.length;
@@ -120,18 +144,6 @@ const randomSound = () => {
   console.log(dirs[getRandomIndex]);
   return dirs[getRandomIndex];
 }
-
-const sequence = () => {
- const first = setInterval(() => {
-         ledBlue.writeSync(ledBlue.readSync() ^ 1);
-  }, 200);
-
- const second = setInterval(() => {
-         ledRed.writeSync(ledRed.readSync() ^ 1);
-  }, 300);
-}
-
-sequence();
 
 const save = (url, filename) => {
   // File to save audio to
@@ -163,18 +175,18 @@ const recordStreaming = () => {
   const recognizeStream = speech.createRecognizeStream(config)
     .on('error', console.error)
     .on('data', data => {
-	record.stop();
+	start = false;
 	console.log(data.results);
     	processing(data);
-  }).on('end', () => { console.log('end stream');});
+  }).on('end', () => { console.log('end stream'); });
 
 
   record.start({
     sampleRateHertz: 16000, threshold: 0,
     // Other options, see https://www.npmjs.com/package/node-record-lpcm16#options
     verbose: false,
-    recordProgram: 'arecord', // Try also "arecord" or "sox"
-    silence: '2.0',
+    recordProgram: 'rec', // Try also "arecord" or "sox"
+    silence: '10.0',
     device: 'plughw:0'
   }).on('error', console.error).pipe(recognizeStream);
 
@@ -220,15 +232,20 @@ const processing = data => {
 
   if(saveFile) {
     record.stop();
-    blink('red', 100);
+    donatedMoney += .50;
+
+    console.log(donatedMoney);
+    sequence();
     play.sound(`./sounds/${randomSound()}` , () => {
-      record.start();
+      clearInterval(firstSequenceInterval);
+      clearInterval(secondSequenceInterval);
+      ledBlue.writeSync(1);
+      ledRed.writeSync(0);
+      recordStreaming();
     });
     let soundString = censoredArr.join(" ").toString();
     textToSpeech(soundString, `highlight${highlightNum}`);
   }
-
-  recordStreaming();
 }
 
 const textToSpeech = (string, fileName) => {
@@ -248,8 +265,13 @@ const textToSpeech = (string, fileName) => {
 
 const textToSpeechStart = (string, filename) => {
   if (playbackStart === true) {
+    endInterval = setInterval(() => {
+      ledWhite.writeSync(ledWhite.readSync() ^ 1);
+    }, 500);    
+    ledBlue.writeSync(0);
+    ledGreen.writeSync(1);    
     playbackStart = false;     
-    textToSpeech(string, filename)
+    textToSpeech(string, filename);
   } else {
     return;
   }
@@ -257,7 +279,11 @@ const textToSpeechStart = (string, filename) => {
 
 const playback = (i = 0) => {
   if (i >= highlightNum) {
-    play.sound('./resources/end.mp3');
+    play.sound('./resources/end.mp3', () => {
+      clearInterval(endInterval);
+      ledWhite.writeSync(1);
+    });
+    ledBlue.writeSync(1);
     ledButton.writeSync(1);
     start = true;
     playbackStart = true;
