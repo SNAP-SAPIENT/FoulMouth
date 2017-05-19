@@ -37,40 +37,37 @@ ledWhite.writeSync(1);
 ledBlue.writeSync(1);
 
 button.watch(function(err, value) {
+  if (value === 0) {
+    if (start === true) {
+      donatedMoney = 0;
+      highlightNum = 0;
+      curseCount = 0;
+      curseWordCount = {};
+      curseWordCountString = '';
+      ledButton.writeSync(0);
+      recordStreaming();
+    } else {
+      record.stop();
+      let timeTense = 'time';
 
- if(value === 0) {
-   console.log(start);
-   if(start === true) {
-     donatedMoney = 0;
-     highlightNum = 0;
-     curseCount = 0;
-     curseWordCount = {};
-     curseWordCountString = '';
-     ledButton.writeSync(0);
-     recordStreaming();
-   } else {
-     record.stop();
-     let timeTense = 'time';
+      if (curseCount > 1) {
+        timeTense = 'times';
+      }
 
-     if (curseCount > 1) {
-       timeTense = 'times';
-     }
-
-
-     for (let curse in curseWordCount) {
-       if (curseWordCount[curse] > 1) {
-         timeTense = 'times';
-       } else {
-         timeTense = 'time';
-       } 
-       curseWordCountString += `${curse} ${curseWordCount[curse]} ${timeTense}`;
-     }
-     textToSpeechStart(`Holy sugar, you cursed ${curseCount} ${timeTense}. You said ${curseWordCountString}. Congratulations! you donated ${Math.trunc(donatedMoney)} dollars and ${(donatedMoney % 1) * 100} cents to the ${charity}. Here are your most memorable moments.`, 'summary');
-   }
- }
+      for (let curse in curseWordCount) {
+        if (curseWordCount[curse] > 1) {
+          timeTense = 'times';
+        } else {
+          timeTense = 'time';
+        }
+        curseWordCountString += `${curse} ${curseWordCount[curse]} ${timeTense}`;
+      }
+      textToSpeechStart(`Holy sugar, you cursed ${curseCount} ${timeTense}. You said ${curseWordCountString}. Congratulations! you donated ${Math.trunc(donatedMoney)} dollars and ${ (donatedMoney % 1) * 100} cents to the ${charity}. Here are your most memorable moments.`, 'summary');
+    }
+  }
 });
 
-process.on('SIGINT', function () {
+process.on('SIGINT', function() {
   button.unexport();
   ledButton.unexport();
   ledBlue.unexport();
@@ -89,41 +86,41 @@ const config = {
 };
 
 const colors = {
-   'white': 'ledWhite',
-   'red': 'ledRed',
-   'green': 'ledGreen',
-   'blue': 'ledBlue',
-   'yellow': ['ledRed', 'ledGreen'],
-   'cyan': ['ledGreen', 'ledBlue'],
-   'purple': ['ledBlue', 'ledRed'],
-   'white': ['ledBlue', 'ledRed', 'ledGreen']
+  'white': 'ledWhite',
+  'red': 'ledRed',
+  'green': 'ledGreen',
+  'blue': 'ledBlue',
+  'yellow': ['ledRed', 'ledGreen'],
+  'cyan': ['ledGreen', 'ledBlue'],
+  'purple': ['ledBlue', 'ledRed'],
+  'white': ['ledBlue', 'ledRed', 'ledGreen']
 };
 
 const blink = (color, time) => {
- const led = colors[color];
- const singleLight = eval(led);
+  const led = colors[color];
+  const singleLight = eval(led);
 
- const blinkInterval = setInterval(() => {
-    if(typeof led === 'object') {
-       led.forEach((value) => {
-         const multiLight = eval(value);
-         multiLight.writeSync(multiLight.readSync() ^ 1);
-       });
+  const blinkInterval = setInterval(() => {
+    if (typeof led === 'object') {
+      led.forEach((value) => {
+        const multiLight = eval(value);
+        multiLight.writeSync(multiLight.readSync() ^ 1);
+      });
     } else {
-       singleLight.writeSync(singleLight.readSync() ^ 1);
+      singleLight.writeSync(singleLight.readSync() ^ 1);
     }
   }, time);
 
   setTimeout(() => {
-   clearInterval(blinkInterval);
-    if(typeof led === 'object') {
-       led.forEach((value) => {
-         const multiLight = eval(value);
-         multiLight.writeSync(0);
-       });
+    clearInterval(blinkInterval);
+    if (typeof led === 'object') {
+      led.forEach((value) => {
+        const multiLight = eval(value);
+        multiLight.writeSync(0);
+      });
     } else {
-       singleLight.writeSync(0);
-    }   
+      singleLight.writeSync(0);
+    }
   }, 3000);
 }
 
@@ -141,7 +138,6 @@ const randomSound = () => {
   const dirs = fs.readdirSync('./sounds/');
   const length = dirs.length;
   const getRandomIndex = Math.floor(Math.random() * length);
-  console.log(dirs[getRandomIndex]);
   return dirs[getRandomIndex];
 }
 
@@ -160,26 +156,24 @@ const save = (url, filename) => {
     }).on('end', function() {
       mp3_file.end();
       console.log("saved");
-      if(filename === 'summary') {
-	play.sound(`./resources/summary.mp3`, () => {
+      if (filename === 'summary') {
+        play.sound(`./resources/summary.mp3`, () => {
           playback();
-	});
+        });
       }
       resolve();
     });
   });
 }
 
-
 const recordStreaming = () => {
-  const recognizeStream = speech.createRecognizeStream(config)
-    .on('error', console.error)
-    .on('data', data => {
-	start = false;
-	console.log(data.results);
-    	processing(data);
-  }).on('end', () => { console.log('end stream'); });
-
+  const recognizeStream = speech.createRecognizeStream(config).on('error', console.error).on('data', data => {
+    start = false;
+    console.log(data.results);
+    processing(data);
+  }).on('end', () => {
+    console.log('end stream');
+  });
 
   record.start({
     sampleRateHertz: 16000, threshold: 0,
@@ -212,37 +206,37 @@ const processing = data => {
   let soundsArr = data.results.split(" ");
 
   let censoredArr = soundsArr.map(word => {
-   console.log(word);
-   for(let key in curseWords) {
-    if(word.includes(key)) {
-      saveFile = true;  
-      curseCount++;
+    console.log(word);
+    for (let key in curseWords) {
+      if (word.includes(key)) {
+        saveFile = true;
+        curseCount++;
 
-      if(curseWordCount[key]) {
- 	curseWordCount[key]++;
-      } else {
-        curseWordCount[key] = 1;
-      } 
+        if (curseWordCount[key]) {
+          curseWordCount[key]++;
+        } else {
+          curseWordCount[key] = 1;
+        }
 
-      return word.replace(key, curseWords[key]);
-    } 
-   } 
-   return word;
+        return word.replace(key, curseWords[key]);
+      }
+    }
+    return word;
   });
 
-  if(saveFile) {
+  if (saveFile) {
     record.stop();
     donatedMoney += .50;
-
-    console.log(donatedMoney);
     sequence();
-    play.sound(`./sounds/${randomSound()}` , () => {
+
+    play.sound(`./sounds/${randomSound()}`, () => {
       clearInterval(firstSequenceInterval);
       clearInterval(secondSequenceInterval);
       ledBlue.writeSync(1);
       ledRed.writeSync(0);
       recordStreaming();
     });
+    
     let soundString = censoredArr.join(" ").toString();
     textToSpeech(soundString, `highlight${highlightNum}`);
   }
@@ -251,14 +245,13 @@ const processing = data => {
 const textToSpeech = (string, fileName) => {
 
   googleTTS(string, 'en', 1). // speed normal = 1 (default), slow = 0.24
-    then((url) => {
-      save(url, fileName);
-    })
-    .catch(err => {
-      console.error(err.stack);
-    });
+  then((url) => {
+    save(url, fileName);
+  }).catch(err => {
+    console.error(err.stack);
+  });
 
-  if(fileName === `highlight${highlightNum}`) {
+  if (fileName === `highlight${highlightNum}`) {
     highlightNum++;
   }
 }
@@ -267,10 +260,10 @@ const textToSpeechStart = (string, filename) => {
   if (playbackStart === true) {
     endInterval = setInterval(() => {
       ledWhite.writeSync(ledWhite.readSync() ^ 1);
-    }, 500);    
+    }, 500);
     ledBlue.writeSync(0);
-    ledGreen.writeSync(1);    
-    playbackStart = false;     
+    ledGreen.writeSync(1);
+    playbackStart = false;
     textToSpeech(string, filename);
   } else {
     return;
@@ -288,7 +281,7 @@ const playback = (i = 0) => {
     start = true;
     playbackStart = true;
 
-    for(let i = 0; i <= highlightNum - 1; i++) {
+    for (let i = 0; i <= highlightNum - 1; i++) {
       fs.unlinkSync(`./resources/highlight${i}.mp3`);
     }
 
@@ -301,6 +294,3 @@ const playback = (i = 0) => {
     });
   }, 1000);
 };
-
-
-

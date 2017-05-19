@@ -1,85 +1,36 @@
-<img src="https://avatars2.githubusercontent.com/u/2810941?v=3&s=96" alt="Google Cloud Platform logo" title="Google Cloud Platform" align="right" height="96" width="96"/>
+# FoulMouth
 
-# Google Cloud Speech API Node.js Samples
+A digital swear jar that records and monitors the entirety of a game from the fanatics perspective capturing any and all curse words. For every curse word in the jar a certain amount of money is sent to a charity. At the end of the game, the jar is opened and what was said throughout the game is spit back out at the fanatic using substitutions for curse words.
 
-The [Cloud Speech API][speech_docs] enables easy integration of Google speech
-recognition technologies into developer applications.
+# How to run the program
 
-[speech_docs]: https://cloud.google.com/speech/
+- Plug in Raspberry pi
+- Connect the ethernet cord (or connect to a fast wifi)
+- Connect a mouse, keyboard, and an HDMI cable to a monitor
 
-## Table of Contents
+### Make sure there is an active Google API account:
 
-* [Setup](#setup)
-* [Samples](#samples)
-  * [Recognize](#recognize)
-* [Running the tests](#running-the-tests)
+- visit [Google API Dashboard](https://console.developers.google.com/apis/dashboard?project=iron-tea-166414&duration=PT1H)
+- Go to API Manager -> Credentials
+    - Click "New Credentials", and create a service account or [click here](https://console.cloud.google.com/project/_/apiui/credential/serviceaccount)
+    - Download the JSON for this service account
+- For this prototype example I saved mine as My-project.json to my home directory
 
-## Setup
 
-1.  Read [Prerequisites][prereq] and [How to run a sample][run] first.
-1.  Install dependencies:
+### Once the pi is booted:
 
-    With `npm`:
+- Open up a terminal window (top bar 3 icon to the right of the Raspberry pi logo)
+- Once the terminal is open. type `cd /media/pi/8765-4321/FoulMouth` and then enter
+- Manually set up the time by typing `sudo date -s "Day Month Year Time(24hours)"` and then enter
+  - For example (May 19th 2017 1:03:30PM) `sudo date -s "19 May 2017 13:03:30"`
+- Set the Google Application Credentials by typing `export GOOGLE_APPLICATION_CREDENTIALS=/path/to/service_account_file.json`
+  - For this prototype example I typed ` export GOOGLE_APPLICATION_CREDENTIALS=/home/pi/My-Project.json`
 
-        npm install
+### Now to run the program
 
-    With `yarn`:
+- Type in `node recognize.js`
+  - if you receive any binding errors on startup `Ctrl+C` and type `node recognize.js` again
+- Once the blue lights and blue light button turn on the program is ready to GO!
 
-        yarn install
 
-[prereq]: ../README.md#prerequisites
-[run]: ../README.md#how-to-run-a-sample
-
-## Samples
-
-### Recognize
-
-View the [documentation][recognize_docs] or the [source code][recognize_code].
-
-__Usage:__ `node recognize.js --help`
-
-```
-Commands:
-  sync <filename>     Detects speech in a local audio file.
-  sync-gcs <gcsUri>   Detects speech in an audio file located in a Google Cloud Storage bucket.
-  async <filename>    Creates a job to detect speech in a local audio file, and waits for the job to complete.
-  async-gcs <gcsUri>  Creates a job to detect speech in an audio file located in a Google Cloud Storage bucket, and
-                      waits for the job to complete.
-  stream <filename>   Detects speech in a local audio file by streaming it to the Speech API.
-  listen              Detects speech in a microphone input stream. This command requires that you have SoX installed and
-                      available in your $PATH. See https://www.npmjs.com/package/node-record-lpcm16#dependencies
-
-Options:
-  --help                 Show help                                                                             [boolean]
-  --encoding, -e                                                                          [string] [default: "LINEAR16"]
-  --sampleRateHertz, -r                                                                        [number] [default: 16000]
-  --languageCode, -l                                                                         [string] [default: "en-US"]
-
-Examples:
-  node recognize.js sync ./resources/audio.raw -e LINEAR16 -r 16000
-  node recognize.js async-gcs gs://gcs-test-data/vr.flac -e FLAC -r 16000
-  node recognize.js stream ./resources/audio.raw  -e LINEAR16 -r 16000
-  node recognize.js listen
-
-For more information, see https://cloud.google.com/speech/docs
-```
-
-**Note:** The `listen` command requires that you have SoX installed and available in your $PATH. See https://www.npmjs.com/package/node-record-lpcm16#dependencies.
-
-[recognize_docs]: https://cloud.google.com/speech/docs
-[recognize_code]: recognize.js
-
-## Running the tests
-
-1.  Set the `GCLOUD_PROJECT` and `GOOGLE_APPLICATION_CREDENTIALS` environment
-    variables.
-
-1.  Run the tests:
-
-    With `npm`:
-
-        npm test
-
-    With `yarn`:
-
-        yarn test
+Press the button and begin recording. Once you are down with your game or recording, hit the button again to get your replay!
