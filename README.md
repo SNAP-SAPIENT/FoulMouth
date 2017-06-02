@@ -34,3 +34,12 @@ A digital swear jar that records and monitors the entirety of a game from the fa
 
 
 Press the button and begin recording. Once you are down with your game or recording, hit the button again to get your replay!
+
+###  LED PinOuts
+const Gpio = require('onoff').Gpio;
+const ledRed = new Gpio(16, 'out');
+const ledWhite = new Gpio(26, 'out');
+const ledBlue = new Gpio(20, 'out');
+const ledGreen = new Gpio(21, 'out');
+const ledButton = new Gpio(14, 'out');
+const button = new Gpio(4, 'in', 'both');
